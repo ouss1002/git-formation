@@ -1,0 +1,25 @@
+{
+  "_comment": "Config du terrain de jeu. Modifiable librement (noms, emails, états). Utilisé par setup-repos.mjs / teardown.mjs (multiplateforme, Node).",
+  "playgroundDir": "playground",
+  "bareName": "AZURE_REPO",
+  "defaultBranch": "main",
+  "featureBranch": "feature/calcul-prime",
+  "people": [
+    { "name": "Oussama", "email": "oussama@example.com", "state": "behind" },
+    { "name": "Jorge",   "email": "jorge@example.com",   "state": "pushed" },
+    { "name": "Anya",    "email": "anya@example.com",    "state": "diverged" },
+    { "name": "Elsa",    "email": "elsa@example.com",    "state": "staged" },
+    { "name": "Zaka",    "email": "zaka@example.com",    "state": "dirty" },
+    { "name": "Thomas",  "email": "thomas@example.com",  "state": "on-feature" },
+    { "name": "Othmane", "email": "othmane@example.com", "state": "stash" }
+  ],
+  "_states": {
+    "behind":     "à jour puis fetch → en retard de 1 (git pull suffit)",
+    "pushed":     "modifie prime.py + commit + push (fait avancer origin) — traité en premier",
+    "diverged":   "modifie la même ligne + commit local + fetch → ahead1/behind1 (conflit au pull)",
+    "staged":     "un fichier indexé (git add) mais pas commité",
+    "dirty":      "modif non indexée + fichier non suivi",
+    "on-feature": "basculé sur featureBranch",
+    "stash":      "un changement mis de côté (git stash)"
+  }
+}

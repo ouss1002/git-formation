@@ -1,0 +1,289 @@
+# 🕹️ Git Playground — un bac à sable pour expérimenter Git (avec tableau de bord visuel)
+
+Un **terrain de jeu Git** en français : plusieurs dépôts réalistes et **jetables**, plus un
+**tableau de bord web temps réel** qui rend visible ce que Git fait d'habitude en coulisses.
+Tu tapes des commandes, tu **vois** l'effet en direct — et tu peux **tout casser sans risque**,
+puisque tout se régénère en une commande.
+
+> **Objectif :** manipuler Git **sans risque**. Utile pour découvrir, tester une commande, ou voir
+> *visuellement* l'effet de `add`, `commit`, `push`, `merge`, `reset`… Antisèche des commandes :
+> [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md).
+
+---
+
+## 1. Les composants (et comment ils s'articulent)
+
+```mermaid
+flowchart TB
+    YOU["⌨️ Toi<br/>tu tapes des commandes git"]
+
+    subgraph PLAY["🎮 Terrain de jeu (généré, jetable)"]
+        AZ["AZURE_REPO<br/>(bare = dépôt distant / origin)"]
+        R1["Oussama · Jorge · Anya<br/>Elsa · Zaka · Thomas · Othmane<br/>(7 clones, identités propres)"]
+        R1 -- "push / pull" --> AZ
+    end
+
+    subgraph WATCH["📺 Watcher (Node + navigateur)"]
+        SRV["server.js<br/>scan + git + chokidar + WebSocket"]
+        UI["http://localhost:4242<br/>3 zones · graphe · métadonnées"]
+        SRV --> UI
+    end
+
+    SCRIPT["scripts/setup-repos.mjs"] --> PLAY
+    YOU --> PLAY
+    PLAY -- "observé en direct par" --> SRV
+    YOU -. "regarde le résultat" .-> UI
+```
+
+- **Tu** tapes les commandes git de ton choix dans les dépôts du terrain de jeu (au besoin, l'antisèche : [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md)).
+- Le **watcher** observe ce dossier et affiche en direct l'effet de chaque commande (fichier qui passe du working directory à l'index, nouveau commit dans le graphe, badges ahead/behind…).
+- Tu **regardes l'écran** et tu comprends *visuellement* ce qui se passe — puis tu recommences autant de fois que tu veux. Rien à perdre : `setup-repos.mjs` remet tout à neuf.
+
+---
+
+## 2. Prérequis
+
+| Outil | Version testée | Vérifier |
+|---|---|---|
+| Git | 2.43+ | `git --version` |
+| Node.js | 18+ (testé sur 25) | `node --version` |
+
+**Windows · macOS · Linux** — le setup tourne via **Node** (multiplateforme). Pas de PowerShell requis.
+
+---
+
+## 3. Démarrage rapide (3 étapes)
+
+```bash
+# 1) Construire le terrain de jeu (multiplateforme, via Node)
+node scripts/setup-repos.mjs
+#    Lanceur natif optionnel — Windows : scripts\setup-repos.ps1 · macOS/Linux : bash scripts/setup-repos.sh
+
+# 2) Installer et lancer le tableau de bord
+cd watcher
+npm install
+node server.js ../playground
+
+# 3) Ouvrir le navigateur : http://localhost:4242
+```
+
+> Astuce : placer le **navigateur (watcher)** et un **terminal** côte à côte, pour voir l'effet de chaque commande en direct.
+
+Pour **tester** que tout marche (sans rien casser) :
+
+```bash
+cd watcher
+npm test            # 21 assertions sur le scanner + l'inspecteur
+npm run simulate           # joue un scénario git, à observer dans le watcher (défaut : cycle)
+npm run simulate -- list   # liste tous les scénarios (voir §6 bis)
+```
+
+---
+
+## 4. Le terrain de jeu (`playground/`)
+
+Généré par `scripts/setup-repos.mjs` — configurable dans [`scripts/config.json`](scripts/config.json)
+(noms, emails, états). **Re-jouable** : relancer efface et recrée tout (`node scripts/teardown.mjs` pour juste supprimer).
+
+| Dépôt | Type | État au démarrage (pour un dashboard vivant) |
+|---|---|---|
+| **AZURE_REPO** | **bare** (origin) | `main` + `feature/calcul-prime`, reçoit les push |
+| Oussama | normal | propre, **en retard de 1** (un `git pull` suffit) |
+| Jorge | normal | à jour, vient de **pousser** le taux 0.055 |
+| Anya | normal | **divergent** (ahead 1 / behind 1) → `git pull` = **conflit** (prêt à résoudre) |
+| Elsa | normal | un fichier **indexé** (staged), pas commité |
+| Zaka | normal | **working dir modifié** (modif non indexée + fichier non suivi) |
+| Thomas | normal | sur la branche **`feature/calcul-prime`** |
+| Othmane | normal | un **stash**, working dir propre |
+
+Chaque clone a sa propre identité (`user.name` / `user.email` = `<prénom>@example.com`),
+donc le graphe montre **qui a fait quoi**.
+
+> Le projet versionné reste petit mais **vivant** : ~19 commits **signés par les 7 personnes**
+> (étalés sur ~3 semaines → des dates réalistes « il y a X jours »), une **fusion** (export CSV),
+> **5 branches** (`main`, `feature/calcul-prime`, `feature/export-csv` *fusionnée*, `fix/arrondi`,
+> `experimentation/modele-2026`) et **2 tags** (`v0.1`, `v1.0`). Petite arborescence :
+> `prime.py · parametres.py · utils.py · export.py · CHANGELOG.md · data/baremes.csv · tests/ · docs/`.
+> Assez pour un graphe riche, sans noyer les débutants sous du code.
+
+---
+
+## 5. Comment marche le watcher (architecture)
+
+```
+watcher/
+├─ server.js            # HTTP + WebSocket + chokidar (orchestration)
+├─ lib/
+│  ├─ scanner.js        # trouve les dépôts ; classe normal vs bare (système de fichiers)
+│  ├─ inspector.js      # construit le "snapshot" d'un dépôt via la CLI git
+│  └─ git.js            # wrapper git (execFile) : -C pour normal, --git-dir pour bare
+├─ public/              # l'UI (sans build : HTML/CSS/JS vanilla)
+│  ├─ index.html · style.css
+│  ├─ app.js            # WebSocket + rendu (sidebar, 3 zones, métadonnées)
+│  └─ graph.js          # graphe de commits en SVG (algorithme de "lanes")
+└─ test/
+   ├─ inspect.test.js   # assertions automatiques
+   └─ simulate.js       # simulateur d'activité (démo/observation)
+```
+
+**Boucle temps réel :**
+1. `scanner` liste les dépôts sous le dossier observé (profondeur bornée, ignore `node_modules`/`objects`).
+2. `inspector` lance des commandes git (`status --porcelain=v2`, `for-each-ref`, `log --all`, `stash list`…) et en fait un objet JSON.
+3. `chokidar` surveille les fichiers **et** les internes `.git` (HEAD, index, refs, logs) → à tout changement, on ré-inspecte le dépôt concerné (anti-rebond ~180 ms).
+4. Un **poll de sécurité** (toutes les 3 s) ré-inspecte tout au cas où un événement fichier serait manqué.
+5. On ne diffuse par **WebSocket** que si le snapshot a **réellement** changé (comparaison de hash) → **zéro scintillement**.
+
+**Indépendant de la configuration** : le watcher ne sait rien des noms Oussama/Jorge/… Il
+prend **un dossier** en argument, y **découvre** les dépôts, et **déduit** lesquels sont
+bare vs normaux. Pointe-le sur n'importe quel dossier :
+
+```powershell
+node server.js "C:\chemin\vers\un\autre\dossier"
+# ou
+$env:WATCH_DIR="C:\..."; node server.js
+```
+
+---
+
+## 6. Lire le tableau de bord
+
+- **Barre du haut** : dossier observé, **ticker** d'activité (⚡ qui a touché quel fichier), pastille de connexion.
+- **Sidebar (gauche)** : une carte par dépôt — identité, badge **remote (bare)** ou **local**, branche courante, compteurs (✚ staged, ● modifié, ? non-suivi, ⚠ conflit, ↑ahead / ↓behind, ⊟ stash).
+- **Panneau (droite)** quand on sélectionne un dépôt :
+  - **Les 3 zones (+ remote)** : Working Directory → Staging → Repository → Remote, avec les flèches `git add` / `git commit` / `git push`.
+  - **Métadonnées** : identité, HEAD, branches (avec ahead/behind), tags, stashes, remotes.
+  - **Graphe** : tous les commits, toutes les branches en colonnes colorées (une couleur par branche), ★ = HEAD.
+
+---
+
+## 6 bis. 🎬 Le simulateur de scénarios
+
+`watcher/test/simulate.js` **joue** de vraies commandes git, une étape à la fois, avec
+une pause entre chacune, pour que tu **observes** le tableau de bord réagir en direct.
+Chaque étape annonce ce qu'elle fait **et** ce que tu dois voir changer dans le watcher.
+
+```bash
+cd watcher
+node test/simulate.js            # scénario par défaut : "cycle"
+node test/simulate.js conflit    # un scénario précis
+node test/simulate.js list       # lister les scénarios
+npm run simulate -- branche      # via npm (le "--" passe l'argument au script)
+```
+
+| Scénario | Dépôt | Ce qu'il montre |
+|---|---|---|
+| `cycle` | Oussama | le cycle complet : *untracked → add → commit → modif → commit → branche → push* |
+| `branche` | Oussama | crée une branche, fait diverger `main`, puis **merge** (vraie bulle de fusion) |
+| `conflit` | Anya | `git pull` sur un dépôt **divergent** → **conflit** sur `prime.py` → résolution |
+| `annuler` | Oussama | `reset --hard` fait « disparaître » 2 commits, puis **reflog** les récupère |
+| `stash` | Oussama | met une modif de côté (`stash`) puis la restaure (`stash pop`) |
+| `amend` | Oussama | corrige le **dernier** commit (`--amend`) sans en créer un nouveau |
+| `remote` | Oussama → Jorge | Oussama **push**, puis Jorge **fetch/pull** et voit le commit arriver |
+
+**Variables d'environnement du simulateur :**
+
+| Variable | Défaut | Effet |
+|---|---|---|
+| `DELAY` | `5000` | pause en **ms** entre chaque étape (baisser = plus rapide, monter = plus lisible) |
+| `PLAYGROUND` | `../playground` | dossier du terrain de jeu à animer |
+| `REPO` | *(celui du scénario)* | force le dépôt cible (ex. rejouer `cycle` sur un autre dépôt) |
+
+```bash
+DELAY=8000 node test/simulate.js branche   # 8 s entre les étapes, bien lisible
+```
+
+> Le simulateur **modifie réellement** les dépôts. Pour tout remettre à l'état initial :
+> `node scripts/setup-repos.mjs`. Le scénario `conflit` consomme la divergence d'Anya —
+> relance le setup avant de le rejouer.
+
+---
+
+## 7. Réinitialiser entre deux essais
+
+```bash
+# Réinitialiser complètement le terrain de jeu :
+node scripts/setup-repos.mjs
+
+# Ou juste supprimer le terrain de jeu :
+node scripts/teardown.mjs
+```
+
+Le watcher détecte la disparition/réapparition des dépôts tout seul (rescan automatique).
+
+---
+
+## 8. Dépannage
+
+| Souci | Cause / solution |
+|---|---|
+| `cannot use bare repository … safe.bareRepository is 'explicit'` | Config git de sécurité. **Déjà géré** : le watcher attaque les dépôts bare avec `--git-dir`. (Si tu scriptes toi-même, fais pareil.) |
+| Le port 4242 est pris | `set PORT=4300` (cmd) / `$env:PORT="4300"` (PowerShell) puis relancer. |
+| Rien ne bouge en direct (lecteur réseau, VM) | Lancer avec `$env:WATCH_FS_POLLING="1"` pour forcer le polling fichiers. |
+| Fausses « modifs » de fins de ligne sous Windows | `setup-repos.mjs` force déjà `core.autocrlf=false` au clone. |
+| Le `push` du simulateur est « rejected » | Normal si le dépôt est *behind* : le simulateur fait un `pull --ff-only` d'abord ; sinon c'est un excellent prétexte à démo « pull avant push ». |
+| **La page s'ouvre vite mais reste vide puis se remplit lentement** | Inspection `git` lente : sur un PC pro, l'**antivirus/EDR scanne chaque `git.exe`**. La page est servie tout de suite ; les dépôts apparaissent **un par un**. Regarde le log `git … un spawn a pris Xms` (si X > 1500 ms, c'est ça). Voir §8 bis pour alléger. |
+| **Le navigateur « recharge » sans afficher l'appli** | Souvent le **WebSocket bloqué** (proxy/sécurité). Le client bascule **tout seul en HTTP** (badge « HTTP (sans live) ») ; l'appli reste utilisable. Console (F12) : `[watcher] WebSocket fermé…`. |
+
+---
+
+## 8 bis. 🩺 Variables d'environnement du watcher — monitorer & régler (surtout PC pro / machine lente)
+
+Le serveur logue tout, **horodaté** (secondes depuis le démarrage). Détail complet :
+
+```powershell
+$env:WATCH_DEBUG="1"; node server.js ../playground
+```
+
+À lire au démarrage :
+
+- `✔ Serveur prêt → http://localhost:4242` apparaît **immédiatement** — la page se charge sans attendre l'inspection (les dépôts arrivent ensuite).
+- `git … un spawn a pris Xms` = **auto-diagnostic**. `X` petit (< 200 ms) = sain ; `X` grand (> 1500 ms) = antivirus/EDR qui ralentit chaque `git` (un avertissement s'affiche).
+- `inspecté <dépôt> en Yms` = temps par dépôt (≈ 6 appels `git` chacun).
+- `Inspection initiale : N dépôt(s) en Wms (… appels git, … lents, … timeouts)` = le bilan. `W` (temps réel) est bien plus petit que le cumul git car les dépôts sont inspectés **en parallèle** (`WATCH_CONCURRENCY`, défaut 4).
+- `poll: 0/8 inspectés (reste sauté, .git inchangé)` = **inspection paresseuse** : tant que rien ne bouge, le poll ne lance **aucun** `git` (juste des `stat`, quasi gratuits). Tu ne dois voir des `git lent` **que** quand tu tapes une vraie commande (chokidar ré-inspecte alors le seul dépôt concerné).
+
+Côté **navigateur** : ouvre la console (F12) → lignes `[watcher]` (WebSocket / bascule HTTP). Et `http://localhost:4242/api/health` renvoie un JSON avec les compteurs `git`.
+
+| Variable d'env | Défaut | Effet |
+|---|---|---|
+| `WATCH_DEBUG` | `0` | `1` = logs détaillés (appels git lents, broadcasts, polls) |
+| `WATCH_CONCURRENCY` | `4` | dépôts inspectés **en parallèle** au démarrage (les spawns git lents se chevauchent) |
+| `WATCH_POLL_MS` | `5000` | filet de sécurité **paresseux** (saute git si `.git` inchangé). `0` = désactivé |
+| `WATCH_RESCAN_MS` | `15000` | re-scan ajout/suppression de dépôts (paresseux aussi) |
+| `WATCH_FS_POLLING` | `0` | `1` = chokidar en polling (lecteurs réseau / VM) |
+| `WATCH_LOG_LIMIT` | `300` | nb de commits chargés pour le graphe (baisser = inspection plus rapide) |
+| `WATCH_GIT_TIMEOUT_MS` | `20000` | tue un `git` qui bloque trop longtemps |
+| `PORT` | `4242` | port HTTP |
+
+> 💡 **Depuis l'inspection paresseuse, au repos le watcher ne lance plus aucun `git`** — inutile de désactiver le poll. Le seul coût restant est l'inspection d'un dépôt **quand il change vraiment**. Pour l'accélérer sur PC très lent :
+> ```powershell
+> $env:WATCH_LOG_LIMIT="120"; $env:WATCH_CONCURRENCY="6"; node server.js ../playground
+> ```
+
+---
+
+## 9. Arborescence
+
+```
+git_form/
+├─ README.md                 ← tu es ici (mise en route)
+├─ docs/
+│  └─ CHEATSHEET.md          ← antisèche des commandes git (FR)
+├─ scripts/
+│  ├─ config.json            ← noms · emails · états (à personnaliser)
+│  ├─ setup-repos.mjs        ← génère playground/ (multiplateforme, via Node)
+│  ├─ teardown.mjs
+│  └─ *.ps1 / *.sh           ← lanceurs par OS (Windows / macOS / Linux) → délèguent à Node
+├─ watcher/                  ← tableau de bord Node + navigateur (voir §5)
+└─ playground/               ← généré par setup-repos.mjs (non versionné)
+```
+
+---
+
+## 10. Pour itérer
+
+C'est un **point de départ** conçu pour être ajusté après tes tests. Quelques pistes faciles :
+- Le **thème visuel** est dans `watcher/public/style.css` (variables de couleur en haut).
+- Les **données collectées** par dépôt : `watcher/lib/inspector.js`.
+- Les **noms, emails et états de départ** : `scripts/config.json`. La logique de génération : `scripts/setup-repos.mjs`.
+- **Ajoute tes propres scénarios** : rien ne t'empêche d'enrichir le terrain de jeu ou de noter tes commandes préférées dans `docs/CHEATSHEET.md`.
