@@ -103,8 +103,12 @@ recrée tout (`scripts/teardown.ps1` pour juste supprimer).
 Chaque clone a sa propre identité (`user.name` / `user.email` = `<prénom>@formation.git`),
 donc le graphe montre **qui a fait quoi**.
 
-> Le mini-projet versionné (`prime.py`, `README.md`, `CHANGELOG.md`, `.gitignore`) est
-> volontairement minuscule : assez pour jouer, sans noyer les débutants sous du code.
+> Le projet versionné reste petit mais **vivant** : ~19 commits **signés par les 7 personnes**
+> (étalés sur ~3 semaines → des dates réalistes « il y a X jours »), une **fusion** (export CSV),
+> **5 branches** (`main`, `feature/calcul-prime`, `feature/export-csv` *fusionnée*, `fix/arrondi`,
+> `experimentation/modele-2026`) et **2 tags** (`v0.1`, `v1.0`). Petite arborescence :
+> `prime.py · parametres.py · utils.py · export.py · CHANGELOG.md · data/baremes.csv · tests/ · docs/`.
+> Assez pour un graphe riche, sans noyer les débutants sous du code.
 
 ---
 
