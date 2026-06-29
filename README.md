@@ -7,7 +7,9 @@ visible ce que Git fait d'habitude en coulisses.
 
 > Ce fichier (`README.md`) est le **document de processus** : il explique comment toutes
 > les pièces s'emboîtent et comment tout lancer. Le **support de cours** est dans
-> [`docs/FORMATION.md`](docs/FORMATION.md) et l'antisèche dans [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md).
+> [`docs/FORMATION.md`](docs/FORMATION.md) (version riche), [`docs/FORMATION-MINI.md`](docs/FORMATION-MINI.md)
+> (version projection : diagrammes + tableaux, 1 scénario par section) et l'antisèche dans
+> [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md).
 
 ---
 
@@ -207,7 +209,8 @@ Le watcher détecte la disparition/réapparition des dépôts tout seul (rescan 
 git_form/
 ├─ README.md                 ← tu es ici (document de processus)
 ├─ docs/
-│  ├─ FORMATION.md           ← support de cours (FR, document vivant)
+│  ├─ FORMATION.md           ← support de cours complet (FR, document vivant)
+│  ├─ FORMATION-MINI.md      ← version projection (diagrammes + tableaux, 1 scénario/section)
 │  └─ CHEATSHEET.md          ← antisèche imprimable (FR)
 ├─ scripts/
 │  ├─ setup-repos.ps1        ← génère playground/ (bare + 7 clones + démo)
