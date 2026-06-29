@@ -9,7 +9,8 @@ visible ce que Git fait d'habitude en coulisses.
 > les pièces s'emboîtent et comment tout lancer. Le **support de cours** est dans
 > [`docs/FORMATION.md`](docs/FORMATION.md) (version riche), [`docs/FORMATION-MINI.md`](docs/FORMATION-MINI.md)
 > (version projection : diagrammes + tableaux, 1 scénario par section) et l'antisèche dans
-> [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md).
+> [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md). Pour **animer** la session (déroulé, sondages Teams,
+> storytelling des scénarios) : [`docs/PRESENTATION.md`](docs/PRESENTATION.md).
 
 ---
 
@@ -211,6 +212,7 @@ git_form/
 ├─ docs/
 │  ├─ FORMATION.md           ← support de cours complet (FR, document vivant)
 │  ├─ FORMATION-MINI.md      ← version projection (diagrammes + tableaux, 1 scénario/section)
+│  ├─ PRESENTATION.md        ← guide d'animation (déroulé, sondages Teams, storytelling)
 │  └─ CHEATSHEET.md          ← antisèche imprimable (FR)
 ├─ scripts/
 │  ├─ setup-repos.ps1        ← génère playground/ (bare + 7 clones + démo)
