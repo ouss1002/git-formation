@@ -1,0 +1,10 @@
+# Le terrain de jeu est généré par scripts/setup-repos.ps1 — ne pas versionner
+playground/
+
+# Dépendances Node du watcher
+watcher/node_modules/
+
+# Divers
+*.log
+.DS_Store
+Thumbs.db
