@@ -19,6 +19,11 @@ const RS = '\x1e';
 const GIT_TIMEOUT = parseInt(process.env.WATCH_GIT_TIMEOUT_MS || '20000', 10);
 const SLOW_MS     = parseInt(process.env.WATCH_GIT_SLOW_MS || '600', 10);
 
+// GIT_OPTIONAL_LOCKS=0 : on n'inspecte qu'en LECTURE. Sans ça, `git status` peut
+// reecrire l'index (pour rafraichir son cache), ce qui ferait "bouger" .git a
+// chaque poll et casserait le saut d'inspection base sur les dates de fichiers.
+const GIT_ENV = Object.assign({}, process.env, { GIT_OPTIONAL_LOCKS: '0' });
+
 let _calls = 0, _totalMs = 0, _slow = 0, _timeouts = 0;
 function gitStats() { return { calls: _calls, totalMs: _totalMs, slow: _slow, timeouts: _timeouts }; }
 function resetStats() { _calls = 0; _totalMs = 0; _slow = 0; _timeouts = 0; }
@@ -43,7 +48,7 @@ function runRaw(args, opts = {}) {
     const t = Date.now();
     execFile(
       'git', args,
-      { maxBuffer: 32 * 1024 * 1024, windowsHide: true, timeout: GIT_TIMEOUT, killSignal: 'SIGKILL', ...opts },
+      { maxBuffer: 32 * 1024 * 1024, windowsHide: true, timeout: GIT_TIMEOUT, killSignal: 'SIGKILL', env: GIT_ENV, ...opts },
       (err, stdout, stderr) => {
         const ms = Date.now() - t;
         _calls++; _totalMs += ms;

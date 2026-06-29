@@ -22,6 +22,7 @@
  *   WATCH_GIT_TIMEOUT_MS=20000  tue un `git` qui bloque
  */
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const chokidar = require('chokidar');
@@ -37,6 +38,7 @@ const PORT = parseInt(process.env.PORT || '4242', 10);
 const POLL_MS = parseInt(process.env.WATCH_POLL_MS || '5000', 10);
 const RESCAN_MS = parseInt(process.env.WATCH_RESCAN_MS || '15000', 10);
 const USE_POLLING = process.env.WATCH_FS_POLLING === '1';
+const CONCURRENCY = Math.max(1, parseInt(process.env.WATCH_CONCURRENCY || '4', 10));
 const argDir = process.argv.find((a, i) => i >= 2 && !a.startsWith('-')) || process.env.WATCH_DIR || path.join('..', 'playground');
 const ROOT = path.resolve(process.cwd(), argDir);
 
@@ -46,6 +48,7 @@ const snapshots = new Map();
 const hashes = new Map();
 const debounceTimers = new Map();
 const lastPulse = new Map();
+const lastSig = new Map();   // id -> signature (dates de .git) pour sauter les inspections inutiles
 let rescanTimer = null;
 let polling = false, rescanning = false;
 let clientSeq = 0;
@@ -90,17 +93,52 @@ function orderedSnapshots() {
   return reposIndex.map((r) => snapshots.get(r.id)).filter(Boolean);
 }
 
+// Execute fn sur chaque item avec au plus `limit` en parallele (pour que les
+// spawns git lents se CHEVAUCHENT au lieu de s'enchainer un par un).
+async function runLimited(items, limit, fn) {
+  const queue = items.slice();
+  const workers = Array.from({ length: Math.min(limit, queue.length || 1) }, async () => {
+    while (queue.length) { const it = queue.shift(); await fn(it); }
+  });
+  await Promise.all(workers);
+}
+
+// --- signature bon marche d'un depot (dates de fichiers .git, sans lancer git) -
+function statMs(p) { try { return fs.statSync(p).mtimeMs; } catch { return 0; } }
+function repoSignature(repo) {
+  const g = repo.type === 'normal' ? path.join(repo.path, '.git') : repo.path;
+  let s = 0;
+  // fichiers qui changent a chaque commit / add / switch / merge / stash / fetch
+  for (const rel of ['HEAD', 'index', 'packed-refs', 'ORIG_HEAD', 'MERGE_HEAD', 'FETCH_HEAD']) {
+    const m = statMs(path.join(g, rel)); if (m > s) s = m;
+  }
+  // dossiers de refs/logs (leur mtime bouge quand une ref est ajoutee/supprimee)
+  for (const rel of ['refs', 'refs/heads', 'refs/tags', 'refs/remotes', 'logs']) {
+    const m = statMs(path.join(g, rel.split('/').join(path.sep))); if (m > s) s = m;
+  }
+  return s;
+}
+
 // --- inspection / diffusion --------------------------------------------------
+// refreshRepo = inspection FORCEE (lance git). Memorise la signature au passage.
 async function refreshRepo(repo) {
   let snap;
   try { snap = await inspectRepo(repo); }
   catch (e) { warn(`inspection ${repo.name} a échoué: ${e.message}`); return false; }
+  lastSig.set(repo.id, repoSignature(repo));
   const h = JSON.stringify(snap);
   if (hashes.get(repo.id) === h) return false;
   hashes.set(repo.id, h);
   snapshots.set(repo.id, snap);
   broadcast({ type: 'update', repo: snap });
   return true;
+}
+
+// maybeRefresh = inspection PARESSEUSE : ne lance git que si .git a bougé.
+// Renvoie 'skip' si rien n'a changé (aucun git lancé), sinon le resultat de refreshRepo.
+async function maybeRefresh(repo) {
+  if (hashes.has(repo.id) && lastSig.get(repo.id) === repoSignature(repo)) return 'skip';
+  return refreshRepo(repo);
 }
 
 function scheduleRefresh(repo) {
@@ -126,15 +164,15 @@ async function fullRescan(initial = false) {
 
     if (initial) {
       log(`${found.length} depot(s) trouvé(s): ${found.map((r) => `${r.name}(${r.type})`).join(', ') || '— aucun —'}`);
-      // inspection sequentielle AVEC diffusion incrementale : les depots
-      // apparaissent un par un dans la sidebar au lieu d'attendre la fin.
-      for (const r of found) {
+      // inspection avec concurrence limitee + diffusion incrementale : les depots
+      // apparaissent au fur et a mesure (par paquets de WATCH_CONCURRENCY).
+      await runLimited(found, CONCURRENCY, async (r) => {
         const s = Date.now();
         await refreshRepo(r);
         log(`  inspecté ${r.name} en ${Date.now() - s}ms`);
-      }
+      });
     } else {
-      await Promise.all(found.map((r) => refreshRepo(r)));
+      await Promise.all(found.map((r) => maybeRefresh(r)));   // paresseux : git seulement si .git a bougé
     }
 
     if (membershipChanged) broadcast({ type: 'snapshot', root: ROOT, repos: orderedSnapshots() });
@@ -154,9 +192,13 @@ async function pollAll() {
   polling = true;
   const t = Date.now();
   try {
-    let changed = 0;
-    for (const r of reposIndex) if (await refreshRepo(r)) changed++;
-    dbg(`poll: ${reposIndex.length} depots en ${Date.now() - t}ms, ${changed} changement·s`);
+    let changed = 0, inspected = 0;
+    for (const r of reposIndex) {
+      const res = await maybeRefresh(r);   // ne lance git que si .git a bougé
+      if (res === 'skip') continue;
+      inspected++; if (res) changed++;
+    }
+    dbg(`poll: ${inspected}/${reposIndex.length} inspectés (reste sauté, .git inchangé), ${changed} changement·s en ${Date.now() - t}ms`);
   } finally { polling = false; }
 }
 
@@ -213,7 +255,7 @@ async function main() {
   log('GIT FORMATION — tableau de bord live');
   log(`Node ${process.version} · ${process.platform} · debug=${DEBUG}`);
   log(`Dossier observé : ${ROOT}`);
-  log(`Config : PORT=${PORT} POLL=${POLL_MS}ms RESCAN=${RESCAN_MS}ms FS_POLLING=${USE_POLLING}`);
+  log(`Config : PORT=${PORT} POLL=${POLL_MS}ms RESCAN=${RESCAN_MS}ms FS_POLLING=${USE_POLLING} CONCURRENCY=${CONCURRENCY}`);
 
   // 1) ECOUTER D'ABORD : la page doit s'afficher immediatement.
   server.listen(PORT, () => {

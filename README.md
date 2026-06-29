@@ -223,25 +223,26 @@ $env:WATCH_DEBUG="1"; node server.js ../playground
 - `✔ Serveur prêt → http://localhost:4242` apparaît **immédiatement** — la page se charge sans attendre l'inspection (les dépôts arrivent ensuite).
 - `git … un spawn a pris Xms` = **auto-diagnostic**. `X` petit (< 200 ms) = sain ; `X` grand (> 1500 ms) = antivirus/EDR qui ralentit chaque `git` (un avertissement s'affiche).
 - `inspecté <dépôt> en Yms` = temps par dépôt (≈ 6 appels `git` chacun).
-- `Inspection initiale : N dépôt(s) en … (… appels git, … lents, … timeouts)` = le bilan.
+- `Inspection initiale : N dépôt(s) en Wms (… appels git, … lents, … timeouts)` = le bilan. `W` (temps réel) est bien plus petit que le cumul git car les dépôts sont inspectés **en parallèle** (`WATCH_CONCURRENCY`, défaut 4).
+- `poll: 0/8 inspectés (reste sauté, .git inchangé)` = **inspection paresseuse** : tant que rien ne bouge, le poll ne lance **aucun** `git` (juste des `stat`, quasi gratuits). Tu ne dois voir des `git lent` **que** quand tu tapes une vraie commande (chokidar ré-inspecte alors le seul dépôt concerné).
 
 Côté **navigateur** : ouvre la console (F12) → lignes `[watcher]` (WebSocket / bascule HTTP). Et `http://localhost:4242/api/health` renvoie un JSON avec les compteurs `git`.
 
 | Variable d'env | Défaut | Effet |
 |---|---|---|
 | `WATCH_DEBUG` | `0` | `1` = logs détaillés (appels git lents, broadcasts, polls) |
-| `WATCH_POLL_MS` | `5000` | re-inspection de sécurité (délai **après** chaque cycle). `0` = désactivée |
-| `WATCH_RESCAN_MS` | `15000` | re-scan ajout/suppression de dépôts |
+| `WATCH_CONCURRENCY` | `4` | dépôts inspectés **en parallèle** au démarrage (les spawns git lents se chevauchent) |
+| `WATCH_POLL_MS` | `5000` | filet de sécurité **paresseux** (saute git si `.git` inchangé). `0` = désactivé |
+| `WATCH_RESCAN_MS` | `15000` | re-scan ajout/suppression de dépôts (paresseux aussi) |
 | `WATCH_FS_POLLING` | `0` | `1` = chokidar en polling (lecteurs réseau / VM) |
-| `WATCH_LOG_LIMIT` | `300` | nb de commits chargés pour le graphe (baisser = plus rapide) |
+| `WATCH_LOG_LIMIT` | `300` | nb de commits chargés pour le graphe (baisser = inspection plus rapide) |
 | `WATCH_GIT_TIMEOUT_MS` | `20000` | tue un `git` qui bloque trop longtemps |
 | `PORT` | `4242` | port HTTP |
 
-> 💡 **Recette « machine pro lente » :**
+> 💡 **Depuis l'inspection paresseuse, au repos le watcher ne lance plus aucun `git`** — inutile de désactiver le poll. Le seul coût restant est l'inspection d'un dépôt **quand il change vraiment**. Pour l'accélérer sur PC très lent :
 > ```powershell
-> $env:WATCH_POLL_MS="0"; $env:WATCH_LOG_LIMIT="120"; node server.js ../playground
+> $env:WATCH_LOG_LIMIT="120"; $env:WATCH_CONCURRENCY="6"; node server.js ../playground
 > ```
-> La page s'affiche tout de suite, les dépôts se remplissent **une fois**, et les mises à jour live passent par chokidar (sans re-inspection périodique).
 
 ---
 
