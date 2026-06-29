@@ -267,19 +267,59 @@
     renderDetail(state.byId.get(state.selected), false);
   }
 
+  // ---------- chargement initial via HTTP (marche meme si le WebSocket est bloque) ----------
+  let wsFails = 0, httpTimer = null;
+
+  async function loadViaHttp() {
+    try {
+      const res = await fetch('/api/repos', { cache: 'no-store' });
+      const data = await res.json();
+      console.log(`[watcher] snapshot via HTTP : ${data.repos ? data.repos.length : 0} dépôt(s)`);
+      applySnapshot(data);
+      return true;
+    } catch (e) {
+      console.warn('[watcher] HTTP /api/repos a échoué :', e.message);
+      return false;
+    }
+  }
+  function startHttpFallback() {
+    if (httpTimer) return;
+    console.warn('[watcher] WebSocket indisponible → bascule HTTP (rafraîchissement toutes les 5 s, pas de "live").');
+    setConn(false, 'HTTP (sans live)');
+    httpTimer = setInterval(loadViaHttp, 5000);
+  }
+  function stopHttpFallback() {
+    if (httpTimer) { clearInterval(httpTimer); httpTimer = null; }
+  }
+
   function connect() {
-    const ws = new WebSocket(`ws://${location.host}`);
-    ws.onopen = () => setConn(true, 'connecté');
-    ws.onclose = () => { setConn(false, 'reconnexion…'); setTimeout(connect, 1200); };
-    ws.onerror = () => ws.close();
+    let ws;
+    try { ws = new WebSocket(`ws://${location.host}`); }
+    catch (e) {
+      console.warn('[watcher] création WebSocket impossible :', e.message);
+      startHttpFallback(); setTimeout(connect, 2000); return;
+    }
+    ws.onopen = () => {
+      console.log('[watcher] WebSocket connecté ✔ (mises à jour live actives)');
+      wsFails = 0; stopHttpFallback(); setConn(true, 'connecté');
+    };
     ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
+      let msg; try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === 'snapshot') applySnapshot(msg);
       else if (msg.type === 'update') applyUpdate(msg.repo);
       else if (msg.type === 'remove') applyRemove(msg.id);
       else if (msg.type === 'pulse') pulse(msg);
     };
+    ws.onerror = () => { console.warn('[watcher] erreur WebSocket'); try { ws.close(); } catch { /* */ } };
+    ws.onclose = () => {
+      wsFails++;
+      console.warn(`[watcher] WebSocket fermé (échec n°${wsFails}) — reconnexion dans 1,5 s`);
+      setConn(false, 'reconnexion…');
+      if (wsFails >= 3) startHttpFallback();   // WS visiblement bloqué -> on garde l'affichage via HTTP
+      setTimeout(connect, 1500);
+    };
   }
 
-  connect();
+  console.log('[watcher] app démarrée — ouvre la console (F12) pour suivre les logs [watcher].');
+  (async () => { await loadViaHttp(); connect(); })();
 })();

@@ -202,9 +202,46 @@ Le watcher détecte la disparition/réapparition des dépôts tout seul (rescan 
 |---|---|
 | `cannot use bare repository … safe.bareRepository is 'explicit'` | Config git de sécurité. **Déjà géré** : le watcher attaque les dépôts bare avec `--git-dir`. (Si tu scriptes toi-même, fais pareil.) |
 | Le port 4242 est pris | `set PORT=4300` (cmd) / `$env:PORT="4300"` (PowerShell) puis relancer. |
-| Rien ne bouge en direct (lecteur réseau, VM) | Lancer avec `$env:WATCH_POLL="1"` pour forcer le polling fichiers. |
+| Rien ne bouge en direct (lecteur réseau, VM) | Lancer avec `$env:WATCH_FS_POLLING="1"` pour forcer le polling fichiers. |
 | Fausses « modifs » de fins de ligne sous Windows | `setup-repos.ps1` force déjà `core.autocrlf=false` au clone. |
 | Le `push` du simulateur est « rejected » | Normal si le dépôt est *behind* : le simulateur fait un `pull --ff-only` d'abord ; sinon c'est un excellent prétexte à démo « pull avant push ». |
+| **La page s'ouvre vite mais reste vide puis se remplit lentement** | Inspection `git` lente : sur un PC pro, l'**antivirus/EDR scanne chaque `git.exe`**. La page est servie tout de suite ; les dépôts apparaissent **un par un**. Regarde le log `git … un spawn a pris Xms` (si X > 1500 ms, c'est ça). Voir §9 bis pour alléger. |
+| **Le navigateur « recharge » sans afficher l'appli** | Souvent le **WebSocket bloqué** (proxy/sécurité). Le client bascule **tout seul en HTTP** (badge « HTTP (sans live) ») ; l'appli reste utilisable. Console (F12) : `[watcher] WebSocket fermé…`. |
+
+---
+
+## 9 bis. 🩺 Monitorer & régler (surtout PC pro / machine lente)
+
+Le serveur logue tout, **horodaté** (secondes depuis le démarrage). Détail complet :
+
+```powershell
+$env:WATCH_DEBUG="1"; node server.js ../playground
+```
+
+À lire au démarrage :
+
+- `✔ Serveur prêt → http://localhost:4242` apparaît **immédiatement** — la page se charge sans attendre l'inspection (les dépôts arrivent ensuite).
+- `git … un spawn a pris Xms` = **auto-diagnostic**. `X` petit (< 200 ms) = sain ; `X` grand (> 1500 ms) = antivirus/EDR qui ralentit chaque `git` (un avertissement s'affiche).
+- `inspecté <dépôt> en Yms` = temps par dépôt (≈ 6 appels `git` chacun).
+- `Inspection initiale : N dépôt(s) en … (… appels git, … lents, … timeouts)` = le bilan.
+
+Côté **navigateur** : ouvre la console (F12) → lignes `[watcher]` (WebSocket / bascule HTTP). Et `http://localhost:4242/api/health` renvoie un JSON avec les compteurs `git`.
+
+| Variable d'env | Défaut | Effet |
+|---|---|---|
+| `WATCH_DEBUG` | `0` | `1` = logs détaillés (appels git lents, broadcasts, polls) |
+| `WATCH_POLL_MS` | `5000` | re-inspection de sécurité (délai **après** chaque cycle). `0` = désactivée |
+| `WATCH_RESCAN_MS` | `15000` | re-scan ajout/suppression de dépôts |
+| `WATCH_FS_POLLING` | `0` | `1` = chokidar en polling (lecteurs réseau / VM) |
+| `WATCH_LOG_LIMIT` | `300` | nb de commits chargés pour le graphe (baisser = plus rapide) |
+| `WATCH_GIT_TIMEOUT_MS` | `20000` | tue un `git` qui bloque trop longtemps |
+| `PORT` | `4242` | port HTTP |
+
+> 💡 **Recette « machine pro lente » :**
+> ```powershell
+> $env:WATCH_POLL_MS="0"; $env:WATCH_LOG_LIMIT="120"; node server.js ../playground
+> ```
+> La page s'affiche tout de suite, les dépôts se remplissent **une fois**, et les mises à jour live passent par chokidar (sans re-inspection périodique).
 
 ---
 
