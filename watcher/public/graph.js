@@ -102,7 +102,7 @@
 
   function render(container, commits, headSha) {
     if (!commits || commits.length === 0) {
-      container.innerHTML = '<p class="note">Aucun commit pour le moment (univers vierge).</p>';
+      container.innerHTML = '<p class="note">Aucun commit pour le moment.</p>';
       return;
     }
     const { rowOf, colOf, maxCol } = layout(commits);

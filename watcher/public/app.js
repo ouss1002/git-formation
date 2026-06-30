@@ -19,7 +19,7 @@
     return `background:linear-gradient(135deg,hsl(${h},75%,60%),hsl(${(h + 40) % 360},75%,48%));`;
   }
   function initials(snap) {
-    if (snap.type === 'bare') return 'QG';
+    if (snap.type === 'bare') return (snap.name.slice(0, 2) || '?').toUpperCase();
     return (snap.name[0] || '?').toUpperCase();
   }
 
@@ -34,7 +34,7 @@
       const st = s.status;
       let counts = '';
       if (s.type === 'bare') {
-        counts = `<span class="cnt clean">dépôt d'échange</span>`;
+        counts = `<span class="cnt clean">exchange only</span>`;
       } else if (st) {
         const c = [];
         if (st.conflicted.length) c.push(`<span class="cnt conflict">⚠ ${st.conflicted.length}</span>`);
@@ -45,7 +45,7 @@
           if (st.aheadBehind.ahead) c.push(`<span class="cnt ahead">↑${st.aheadBehind.ahead}</span>`);
           if (st.aheadBehind.behind) c.push(`<span class="cnt behind">↓${st.aheadBehind.behind}</span>`);
         }
-        if (!c.length) c.push(`<span class="cnt clean">✓ propre</span>`);
+        if (!c.length) c.push(`<span class="cnt clean">✓ clean</span>`);
         if (s.stashes.length) c.push(`<span class="cnt untracked">⊟ ${s.stashes.length}</span>`);
         counts = c.join('');
       }
@@ -53,7 +53,7 @@
         ? `<span class="branch-chip">detached @ ${esc(s.head.sha || '')}</span>`
         : `<span class="branch-chip">⌥ ${esc(s.head.branch || '?')}</span>`;
       const badge = s.type === 'bare'
-        ? `<span class="badge qg">QG</span>`
+        ? `<span class="badge qg">remote</span>`
         : `<span class="badge local">local</span>`;
       return `
         <div class="repo-card${active}${bare}" data-id="${esc(id)}">
@@ -79,9 +79,9 @@
     if (s.type === 'bare') {
       return `
       <div class="card" data-zone>
-        <h2>Le QG (dépôt bare)</h2>
-        <p class="hint">Pas de “working directory” ici : un dépôt <b>bare</b> ne sert qu'à
-        <b>échanger</b> l'historique. C'est la destination des <code>push</code> et la source des
+        <h2>Remote (bare repo)</h2>
+        <p class="hint">Pas de <b>working directory</b> ici : un repo <b>bare</b> ne sert qu'à
+        <b>échanger</b> l'historique. C'est la cible des <code>push</code> et la source des
         <code>fetch</code>/<code>pull</code> de tout le monde.</p>
         <div class="note">Branches publiées : ${
           s.branches.length ? s.branches.map((b) => `<span class="bl-item">${esc(b.name)}</span>`).join(' ') : '—'
@@ -89,51 +89,51 @@
       </div>`;
     }
     const workChips =
-      st.conflicted.map((f) => chip('conflict', 'conflit', f.path)).join('') +
+      st.conflicted.map((f) => chip('conflict', 'conflict', f.path)).join('') +
       st.unstaged.map((f) => chip('modified', f.label, f.path)).join('') +
-      st.untracked.map((f) => chip('untracked', 'non-suivi', f.path)).join('');
+      st.untracked.map((f) => chip('untracked', 'untracked', f.path)).join('');
     const stageChips = st.staged.map((f) => chip('staged', f.label, f.path)).join('');
 
     const head = s.commits[0];
     const repoChip = head
-      ? `<div class="chip commit"><span class="tag">checkpoint HEAD</span><b>${esc(head.short)}</b> ${esc(head.subject.slice(0, 40))}</div>`
-      : `<div class="vide">univers vierge</div>`;
+      ? `<div class="chip commit"><span class="tag">HEAD</span><b>${esc(head.short)}</b> ${esc(head.subject.slice(0, 40))}</div>`
+      : `<div class="vide">no commit</div>`;
 
-    let remoteInner = '<div class="vide">pas de QG suivi</div>';
+    let remoteInner = '<div class="vide">no upstream</div>';
     const ab = st.aheadBehind;
     if (st.upstream) {
       const parts = [`<div class="note" style="margin-bottom:6px">↔ ${esc(st.upstream)}</div>`];
-      if (ab && ab.ahead) parts.push(`<div class="chip staged"><span class="tag">à envoyer</span>↑ ${ab.ahead} commit(s)</div>`);
-      if (ab && ab.behind) parts.push(`<div class="chip modified"><span class="tag">à récupérer</span>↓ ${ab.behind} commit(s)</div>`);
-      if (ab && !ab.ahead && !ab.behind) parts.push(`<div class="chip staged"><span class="tag">sync</span>à jour ✓</div>`);
+      if (ab && ab.ahead) parts.push(`<div class="chip staged"><span class="tag">ahead</span>↑ ${ab.ahead} commit(s)</div>`);
+      if (ab && ab.behind) parts.push(`<div class="chip modified"><span class="tag">behind</span>↓ ${ab.behind} commit(s)</div>`);
+      if (ab && !ab.ahead && !ab.behind) parts.push(`<div class="chip staged"><span class="tag">sync</span>up to date ✓</div>`);
       remoteInner = parts.join('');
     }
 
     const zN = (n) => `<span class="n">${n}</span>`;
     return `
       <div class="card" data-zone>
-        <h2>Les 3 zones (+ le QG)</h2>
-        <p class="hint">Le trajet d'une modif : tu bricoles sur l'<b>établi</b>, tu choisis quoi mettre
-        dans le <b>sas</b> (<code>git add</code>), tu figes un <b>checkpoint</b> (<code>git commit</code>),
-        puis tu <b>l'envoies au QG</b> (<code>git push</code>).</p>
+        <h2>Les 3 zones (+ Remote)</h2>
+        <p class="hint">Le parcours d'une modif : tu travailles dans le <b>Working Directory</b>, tu choisis
+        quoi passer en <b>Staging</b> (<code>git add</code>), tu crées un <b>commit</b> (<code>git commit</code>),
+        puis tu l'envoies vers le <b>Remote</b> (<code>git push</code>).</p>
         <div class="zones">
           <div class="zone working">
-            <div class="zone-head"><span><span class="zone-name">🛠️ Établi</span> <span class="zone-sub">working dir</span></span>${zN(st.conflicted.length + st.unstaged.length + st.untracked.length)}</div>
-            <div class="chips">${workChips || '<div class="vide">propre</div>'}</div>
+            <div class="zone-head"><span><span class="zone-name">🛠️ Working Dir</span> <span class="zone-sub">working directory</span></span>${zN(st.conflicted.length + st.unstaged.length + st.untracked.length)}</div>
+            <div class="chips">${workChips || '<div class="vide">clean</div>'}</div>
           </div>
           <div class="arrow"><span class="lbl">git add</span><span class="gt">⟶</span></div>
           <div class="zone staging">
-            <div class="zone-head"><span><span class="zone-name">📦 Sas</span> <span class="zone-sub">staging</span></span>${zN(st.staged.length)}</div>
-            <div class="chips">${stageChips || '<div class="vide">vide</div>'}</div>
+            <div class="zone-head"><span><span class="zone-name">📦 Staging</span> <span class="zone-sub">staging area</span></span>${zN(st.staged.length)}</div>
+            <div class="chips">${stageChips || '<div class="vide">empty</div>'}</div>
           </div>
           <div class="arrow"><span class="lbl">git commit</span><span class="gt">⟶</span></div>
           <div class="zone repo">
-            <div class="zone-head"><span><span class="zone-name">💾 Dépôt</span> <span class="zone-sub">HEAD</span></span></div>
+            <div class="zone-head"><span><span class="zone-name">💾 Repository</span> <span class="zone-sub">HEAD</span></span></div>
             <div class="chips">${repoChip}</div>
           </div>
           <div class="arrow"><span class="lbl">git push</span><span class="gt">⟶</span></div>
           <div class="zone remote">
-            <div class="zone-head"><span><span class="zone-name">☁️ QG</span> <span class="zone-sub">origin</span></span></div>
+            <div class="zone-head"><span><span class="zone-name">☁️ Remote</span> <span class="zone-sub">origin</span></span></div>
             <div class="chips">${remoteInner}</div>
           </div>
         </div>
@@ -163,38 +163,38 @@
         <div class="meta-grid">
           <div class="meta"><div class="k">Identité (qui signe)</div><div class="v mono">${idName}${idMail}</div></div>
           <div class="meta"><div class="k">HEAD</div><div class="v mono">${s.head.detached ? 'detached @ ' + esc(s.head.sha) : '⌥ ' + esc(s.head.branch || '?')}</div></div>
-          <div class="meta"><div class="k">Type</div><div class="v">${s.type === 'bare' ? 'bare (QG)' : 'normal'}</div></div>
-          <div class="meta"><div class="k">Commits visibles</div><div class="v">${s.commits.length}</div></div>
-          <div class="meta"><div class="k">Stash (poche)</div><div class="v">${s.stashes.length}</div></div>
+          <div class="meta"><div class="k">Type</div><div class="v">${s.type === 'bare' ? 'bare' : 'normal'}</div></div>
+          <div class="meta"><div class="k">Commits</div><div class="v">${s.commits.length}</div></div>
+          <div class="meta"><div class="k">Stash</div><div class="v">${s.stashes.length}</div></div>
           <div class="meta"><div class="k">Tags</div><div class="v" style="font-size:13px">${tags}</div></div>
         </div>
         <div style="margin-top:12px"><div class="k" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Branches locales</div>
           <div class="branch-list" style="margin-top:6px">${branchList || '<span class="note">aucune</span>'}</div></div>
         <div style="margin-top:12px"><div class="k" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Remotes</div>
           <div class="mono" style="font-size:12px;margin-top:6px">${remotes}</div></div>
-        ${s.stashes.length ? `<div style="margin-top:10px" class="note">Poche : ${s.stashes.map((x) => esc(x.message)).join(' · ')}</div>` : ''}
+        ${s.stashes.length ? `<div style="margin-top:10px" class="note">Stash : ${s.stashes.map((x) => esc(x.message)).join(' · ')}</div>` : ''}
       </div>`;
   }
 
   function renderDetail(s, flash) {
     const det = $('detail');
     if (!s) {
-      det.innerHTML = `<div class="empty"><div class="big">⏳</div><p>Sélectionne un dépôt à gauche.</p></div>`;
+      det.innerHTML = `<div class="empty"><div class="big">⏳</div><p>Sélectionne un repo à gauche.</p></div>`;
       return;
     }
     det.innerHTML = `
       <div class="detail-head">
         <div class="avatar${s.type === 'bare' ? ' qg' : ''}" style="${avatarStyle(s)}">${initials(s)}</div>
         <div class="detail-title">
-          <h1>${esc(s.name)} ${s.type === 'bare' ? '<span class="badge qg">QG · bare</span>' : '<span class="badge local">dépôt local</span>'}</h1>
+          <h1>${esc(s.name)} ${s.type === 'bare' ? '<span class="badge qg">remote · bare</span>' : '<span class="badge local">local repo</span>'}</h1>
           <div class="id">${esc(s.path)}</div>
         </div>
       </div>
       ${zonesCard(s)}
       ${metaCard(s)}
       <div class="card" data-graph>
-        <h2>Graphe temporel (toutes les branches)</h2>
-        <p class="hint">Chaque colonne coloree = une ligne temporelle (branche). ★ = HEAD (tu es ici).</p>
+        <h2>Commit graph — toutes les branches</h2>
+        <p class="hint">Chaque colonne colorée = une branche. ★ = HEAD.</p>
         <div class="graph-wrap"><div id="graph"></div></div>
       </div>`;
     window.GitGraph.render($('graph'), s.commits, s.head.sha);
@@ -274,7 +274,7 @@
     try {
       const res = await fetch('/api/repos', { cache: 'no-store' });
       const data = await res.json();
-      console.log(`[watcher] snapshot via HTTP : ${data.repos ? data.repos.length : 0} dépôt(s)`);
+      console.log(`[watcher] snapshot via HTTP : ${data.repos ? data.repos.length : 0} repo(s)`);
       applySnapshot(data);
       return true;
     } catch (e) {

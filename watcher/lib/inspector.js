@@ -19,8 +19,8 @@ const LOG_LIMIT = parseInt(process.env.WATCH_LOG_LIMIT || '300', 10);
 function splitLines(s) { return s ? s.split('\n').filter((l) => l.length > 0) : []; }
 
 const CODE_LABEL = {
-  M: 'modifie', A: 'ajoute', D: 'supprime', R: 'renomme',
-  C: 'copie', T: 'type', U: 'non-fusionne', '?': 'non-suivi',
+  M: 'modified', A: 'added', D: 'deleted', R: 'renamed',
+  C: 'copied', T: 'typechange', U: 'unmerged', '?': 'untracked',
 };
 function label(code) { return CODE_LABEL[code] || code; }
 
@@ -50,9 +50,9 @@ function parseStatus(text) {
       if (X !== '.') staged.push({ path: pathStr, code: X, label: label(X) });
       if (Y !== '.') unstaged.push({ path: pathStr, code: Y, label: label(Y) });
     } else if (type === 'u') {
-      conflicted.push({ path: line.split(' ').slice(10).join(' '), code: 'U', label: 'conflit' });
+      conflicted.push({ path: line.split(' ').slice(10).join(' '), code: 'U', label: 'conflict' });
     } else if (type === '?') {
-      untracked.push({ path: line.slice(2), code: '?', label: 'non-suivi' });
+      untracked.push({ path: line.slice(2), code: '?', label: 'untracked' });
     }
   }
   const clean = !staged.length && !unstaged.length && !untracked.length && !conflicted.length;

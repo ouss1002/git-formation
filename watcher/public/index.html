@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⏳ Git — Tableau de bord temporel</title>
+  <title>Git Dashboard</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header id="topbar">
-    <div class="brand"><span class="logo">⏳</span> GIT&nbsp;·&nbsp;Tableau de bord temporel</div>
+    <div class="brand"><span class="logo">⏳</span> Git Dashboard</div>
     <div class="root" id="rootPath">…</div>
     <div class="ticker-wrap"><div class="ticker" id="ticker"></div></div>
     <div class="conn" id="conn" title="Connexion">
@@ -18,21 +18,21 @@
 
   <main>
     <aside id="sidebar">
-      <div class="side-head">Dépôts <span id="repoCount" class="pill">0</span></div>
+      <div class="side-head">Repos <span id="repoCount" class="pill">0</span></div>
       <div id="repoList"></div>
       <div class="legend">
-        <div><span class="sw qg"></span> QG / origin (bare)</div>
-        <div><span class="sw staged"></span> préparé (staging)</div>
-        <div><span class="sw modified"></span> modifié (working)</div>
-        <div><span class="sw untracked"></span> non-suivi</div>
-        <div><span class="sw conflict"></span> conflit</div>
+        <div><span class="sw qg"></span> remote / origin (bare)</div>
+        <div><span class="sw staged"></span> staged</div>
+        <div><span class="sw modified"></span> modified (working dir)</div>
+        <div><span class="sw untracked"></span> untracked</div>
+        <div><span class="sw conflict"></span> conflict</div>
       </div>
     </aside>
 
     <section id="detail">
       <div class="empty" id="emptyState">
         <div class="big">⏳</div>
-        <p>Sélectionne un dépôt à gauche pour explorer sa timeline.</p>
+        <p>Sélectionne un repo à gauche pour explorer sa timeline.</p>
       </div>
     </section>
   </main>
