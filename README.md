@@ -255,6 +255,8 @@ git_form/
 │  ├─ FORMATION.md           ← support de cours complet (FR, document vivant)
 │  ├─ FORMATION-MINI.md      ← version projection (diagrammes + tableaux, 1 scénario/section)
 │  ├─ PRESENTATION.md        ← guide d'animation (déroulé, sondages Teams, storytelling)
+│  ├─ PRESENTATION-SLIDES.md ← plan slide-par-slide du deck d'intro (avant la démo)
+│  ├─ slides/Git_Introduction.pptx ← deck PowerPoint généré (7 slides)
 │  └─ CHEATSHEET.md          ← antisèche imprimable (FR)
 ├─ scripts/
 │  ├─ setup-repos.ps1        ← génère playground/ (bare + 7 clones + démo)
