@@ -168,10 +168,10 @@
           <div class="meta"><div class="k">Stash</div><div class="v">${s.stashes.length}</div></div>
           <div class="meta"><div class="k">Tags</div><div class="v" style="font-size:13px">${tags}</div></div>
         </div>
-        <div style="margin-top:12px"><div class="k" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Branches locales</div>
-          <div class="branch-list" style="margin-top:6px">${branchList || '<span class="note">aucune</span>'}</div></div>
-        <div style="margin-top:12px"><div class="k" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Remotes</div>
-          <div class="mono" style="font-size:12px;margin-top:6px">${remotes}</div></div>
+        <div class="meta-block local"><div class="mb-title">Branches locales</div>
+          <div class="branch-list">${branchList || '<span class="note">aucune</span>'}</div></div>
+        <div class="meta-block remote"><div class="mb-title">Remotes</div>
+          <div class="mono" style="font-size:12px">${remotes}</div></div>
         ${s.stashes.length ? `<div style="margin-top:10px" class="note">Stash : ${s.stashes.map((x) => esc(x.message)).join(' · ')}</div>` : ''}
       </div>`;
   }
@@ -191,11 +191,13 @@
         </div>
       </div>
       ${zonesCard(s)}
-      ${metaCard(s)}
-      <div class="card" data-graph>
-        <h2>Commit graph — toutes les branches</h2>
-        <p class="hint">Chaque colonne colorée = une branche. ★ = HEAD.</p>
-        <div class="graph-wrap"><div id="graph"></div></div>
+      <div class="detail-bottom">
+        <div class="card" data-graph>
+          <h2>Commit graph — toutes les branches</h2>
+          <p class="hint">Chaque colonne colorée = une branche. ★ = HEAD.</p>
+          <div class="graph-wrap"><div id="graph"></div></div>
+        </div>
+        ${metaCard(s)}
       </div>`;
     window.GitGraph.render($('graph'), s.commits, s.head.sha);
 

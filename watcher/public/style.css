@@ -104,6 +104,7 @@ main { flex: 1; display: grid; grid-template-columns: 320px 1fr; min-height: 0; 
 
 .repo-meta { min-width: 0; flex: 1; }
 .repo-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.repo-name .badge { margin-left: auto; }   /* tag LOCAL/REMOTE aligné à droite */
 .repo-sub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; margin-top: 2px; font-family: var(--mono); }
 .badge { font-size: 9px; text-transform: uppercase; letter-spacing: .5px;
@@ -192,10 +193,22 @@ main { flex: 1; display: grid; grid-template-columns: 320px 1fr; min-height: 0; 
 .arrow .gt { font-size: 22px; line-height: 1; color: var(--cyan); }
 
 /* ---------- meta strip ---------- */
-.meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
+/* metadata = colonne étroite à côté du graphe */
+.detail-bottom { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.detail-bottom > .card { margin-bottom: 0; }
+@media (max-width: 1100px) { .detail-bottom { grid-template-columns: 1fr; } }
+
+.meta-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .meta {
   background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  overflow-wrap: anywhere;
 }
+/* sections "local" / "remote" encadrées (comme les zones) */
+.meta-block { background: var(--bg2); border: 1px dashed var(--border); border-radius: 12px; padding: 10px 12px; margin-top: 12px; overflow-wrap: anywhere; }
+.meta-block .mb-title { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 7px; }
+.meta-block .mono { word-break: break-all; }   /* coupe les longues URLs/chemins de remote */
+.meta-block.local  { border-color: rgba(56,189,248,.40); }
+.meta-block.remote { border-color: rgba(227,179,65,.45); background: linear-gradient(180deg, rgba(227,179,65,.05), transparent), var(--bg2); }
 .meta .k { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
 .meta .v { font-size: 16px; font-weight: 700; margin-top: 3px; }
 .meta .v.mono { font-family: var(--mono); font-size: 13px; font-weight: 500; word-break: break-all; }
